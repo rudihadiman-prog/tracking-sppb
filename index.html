@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Tracking SPPb</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<style>
+
+:root{
+  --primary:#0B3040;
+  --blue:#0B57D0;
+  --bg:#f4f7fb;
+  --card:#ffffff;
+  --border:#dbe3ec;
+  --text:#1e293b;
+  --muted:#64748b;
+}
+
+*{
+  margin:0;
+  padding:0;
+  box-sizing:border-box;
+}
+
+body{
+  font-family:'Inter',sans-serif;
+  background:var(--bg);
+  color:var(--text);
+}
+
+.container{
+  max-width:1000px;
+  margin:auto;
+  padding:40px 16px;
+}
+
+.header{
+  text-align:center;
+  margin-bottom:30px;
+}
+
+.logo{
+  font-size:42px;
+  font-weight:700;
+  color:var(--primary);
+}
+
+.subtitle{
+  margin-top:8px;
+  color:var(--muted);
+  font-size:15px;
+}
+
+.search-box{
+  background:#fff;
+  border:1px solid var(--border);
+  border-radius:16px;
+  display:flex;
+  align-items:center;
+  gap:12px;
+  padding:14px 16px;
+  margin-bottom:18px;
+}
+
+.search-input{
+  width:100%;
+  border:none;
+  outline:none;
+  background:transparent;
+  font-size:15px;
+}
+
+.loading{
+  width:18px;
+  height:18px;
+  border:2px solid #cbd5e1;
+  border-top:2px solid var(--blue);
+  border-radius:50%;
+  animation:spin 1s linear infinite;
+  display:none;
+}
+
+@keyframes spin{
+  to{
+    transform:rotate(360deg);
+  }
+}
+
+.stats{
+  margin-bottom:15px;
+  color:var(--muted);
+  font-size:13px;
+}
+
+.result{
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:16px;
+  padding:18px;
+  margin-bottom:14px;
+}
+
+.result-top{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+  gap:12px;
+  flex-wrap:wrap;
+  margin-bottom:12px;
+}
+
+.title{
+  font-size:18px;
+  font-weight:700;
+  color:var(--blue);
+}
+
+.badge{
+  background:#dcfce7;
+  color:#15803d;
+  padding:6px 12px;
+  border-radius:999px;
+  font-size:12px;
+  font-weight:700;
+}
+
+.desc{
+  color:#475569;
+  line-height:1.7;
+  margin-bottom:14px;
+}
+
+.meta{
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px;
+  margin-bottom:15px;
+}
+
+.meta-item{
+  background:#f8fafc;
+  border:1px solid var(--border);
+  border-radius:10px;
+  padding:10px 12px;
+  font-size:13px;
+}
+
+.pdf-link{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  background:#dc2626;
+  color:#fff;
+  text-decoration:none;
+  padding:10px 14px;
+  border-radius:10px;
+  font-size:13px;
+  font-weight:600;
+}
+
+.pdf-link:hover{
+  opacity:.9;
+}
+
+.pdf-preview{
+  width:100%;
+  height:500px;
+  border:none;
+  border-radius:12px;
+  margin-top:15px;
+  background:#fff;
+}
+
+.empty,
+.error{
+  text-align:center;
+  padding:50px 20px;
+  color:var(--muted);
+}
+
+.error{
+  color:#dc2626;
+}
+
+.footer{
+  text-align:center;
+  margin-top:40px;
+  color:#94a3b8;
+  font-size:12px;
+}
+
+mark{
+  background:#fde68a;
+  padding:2px 4px;
+  border-radius:4px;
+}
+
+@media(max-width:768px){
+
+  .logo{
+    font-size:32px;
+  }
+
+  .result{
+    padding:15px;
+  }
+
+  .pdf-preview{
+    height:350px;
+  }
+
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div class="container">
+
+  <div class="header">
+
+    <div class="logo">
+      Tracking SPPb
+    </div>
+
+    <div class="subtitle">
+      Sistem pencarian dokumen & tracking data SPPb
+    </div>
+
+  </div>
+
+  <div class="search-box">
+
+    <div>🔍</div>
+
+    <input
+      type="text"
+      id="search"
+      class="search-input"
+      placeholder="Cari nomor SPPb, uraian, status..."
+      autocomplete="off"
+    >
+
+    <div class="loading" id="loading"></div>
+
+  </div>
+
+  <div id="stats" class="stats"></div>
+
+  <div id="results"></div>
+
+  <div class="footer">
+    Tracking SPPb • Powered by Google Spreadsheet
+  </div>
+
+</div>
+
+<script>
+
+// GANTI DENGAN URL APPS SCRIPT ANDA
+const API_URL =
+"https://script.google.com/macros/s/AKfycbxxxxxxxxxxxxxxxx/exec";
+
+const searchInput =
+document.getElementById("search");
+
+const resultsDiv =
+document.getElementById("results");
+
+const statsDiv =
+document.getElementById("stats");
+
+const loading =
+document.getElementById("loading");
+
+let debounce;
+
+searchInput.addEventListener("input", () => {
+
+  clearTimeout(debounce);
+
+  const keyword =
+  searchInput.value.trim();
+
+  if(!keyword){
+
+    statsDiv.innerHTML = "";
+
+    resultsDiv.innerHTML = `
+      <div class="empty">
+        Mulai ketik untuk mencari data...
+      </div>
+    `;
+
+    return;
+  }
+
+  debounce = setTimeout(() => {
+    searchData(keyword);
+  }, 300);
+
+});
+
+function searchData(keyword){
+
+  loading.style.display = "block";
+
+  const oldScript =
+  document.getElementById("jsonp");
+
+  if(oldScript){
+    oldScript.remove();
+  }
+
+  const script =
+  document.createElement("script");
+
+  script.id = "jsonp";
+
+  script.src =
+    API_URL +
+    "?q=" +
+    encodeURIComponent(keyword) +
+    "&callback=handleResults";
+
+  script.onerror = () => {
+
+    loading.style.display = "none";
+
+    resultsDiv.innerHTML = `
+      <div class="error">
+        Gagal mengambil data dari server
+      </div>
+    `;
+
+  };
+
+  document.body.appendChild(script);
+
+}
+
+function handleResults(data){
+
+  loading.style.display = "none";
+
+  const keyword =
+  searchInput.value.trim();
+
+  if(!Array.isArray(data) || !data.length){
+
+    statsDiv.innerHTML =
+    "0 hasil ditemukan";
+
+    resultsDiv.innerHTML = `
+      <div class="empty">
+        Tidak ada data ditemukan
+      </div>
+    `;
+
+    return;
+  }
+
+  statsDiv.innerHTML =
+  `${data.length} hasil ditemukan`;
+
+  resultsDiv.innerHTML =
+  data.map(item =>
+    createCard(item, keyword)
+  ).join("");
+
+}
+
+function createCard(item, keyword){
+
+  const no_sppb =
+  highlight(item.no_sppb || "-", keyword);
+
+  const uraian =
+  highlight(item.uraian || "-", keyword);
+
+  const status =
+  item.status || "Tidak Ada Status";
+
+  const nilai =
+  formatNumber(item.nilai || 0);
+
+  const tanggal =
+  formatDate(item.tanggal);
+
+  const pdf =
+  item.pdf_url || "";
+
+  return `
+
+    <div class="result">
+
+      <div class="result-top">
+
+        <div class="title">
+          ${no_sppb}
+        </div>
+
+        <div class="badge">
+          ${status}
+        </div>
+
+      </div>
+
+      <div class="desc">
+        ${uraian}
+      </div>
+
+      <div class="meta">
+
+        <div class="meta-item">
+          💰 Rp ${nilai}
+        </div>
+
+        <div class="meta-item">
+          📅 ${tanggal}
+        </div>
+
+      </div>
+
+      ${
+        pdf
+        ?
+        `
+          <a
+            href="${pdf}"
+            target="_blank"
+            class="pdf-link"
+          >
+            📄 Buka Lampiran PDF
+          </a>
+
+          <iframe
+            src="${pdf}"
+            class="pdf-preview">
+          </iframe>
+        `
+        :
+        ""
+      }
+
+    </div>
+
+  `;
+
+}
+
+function highlight(text, keyword){
+
+  if(!keyword) return text;
+
+  const regex =
+  new RegExp(
+    `(${escapeRegex(keyword)})`,
+    "gi"
+  );
+
+  return text.replace(
+    regex,
+    "<mark>$1</mark>"
+  );
+
+}
+
+function escapeRegex(text){
+
+  return text.replace(
+    /[.*+?^${}()|[\]\\]/g,
+    "\\$&"
+  );
+
+}
+
+function formatNumber(number){
+
+  return new Intl.NumberFormat(
+    "id-ID"
+  ).format(Number(number));
+
+}
+
+function formatDate(dateString){
+
+  if(!dateString) return "-";
+
+  const date =
+  new Date(dateString);
+
+  if(isNaN(date)){
+    return dateString;
+  }
+
+  return new Intl.DateTimeFormat(
+    "id-ID",
+    {
+      day:"2-digit",
+      month:"long",
+      year:"numeric",
+      hour:"2-digit",
+      minute:"2-digit"
+    }
+  ).format(date);
+
+}
+
+resultsDiv.innerHTML = `
+  <div class="empty">
+    Mulai ketik untuk mencari data...
+  </div>
+`;
+
+</script>
+
+</body>
+</html>
